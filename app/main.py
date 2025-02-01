@@ -63,6 +63,7 @@ def main():
                 command, file_to_redirect = handle_redirection(command)
                 with open(file_to_redirect, "w") as f:
                     f.write(" ".join(tokens[1:]) + "\n")
+                continue
             else:
                 sys.stdout.write(" ".join(tokens[1:]) + "\n")
             sys.stdout.flush()
