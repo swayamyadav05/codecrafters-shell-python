@@ -29,7 +29,7 @@ def main():
         elif cmd[0] == "type" and cmd[1] in shell_builtin:
             print(f"{cmd[1]} is a shell builtin")
         elif cmd[0] == "type" and cmd[1] not in shell_builtin:
-            print(f"{cmd[1]}: command not found")
+            print(f"{cmd[1]}: not found")
         else:
             print(f"{command}: command not found")
 
