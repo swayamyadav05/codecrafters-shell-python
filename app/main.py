@@ -100,7 +100,7 @@ def main():
         cmd_path = find_executable(tokens[0], path_dirs)
         if cmd_path:
             try:
-                subprocess.run([cmd_path] + tokens[1:])
+                subprocess.run([tokens[0]] + tokens[1:], executable=cmd_path)
             except Exception as e:
                 sys.stdout.write(f"Error executing {tokens[0]}: {e}\n")
         else:
