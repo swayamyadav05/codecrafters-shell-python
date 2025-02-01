@@ -1,8 +1,10 @@
 import sys
 import os
+import subprocess
 
 
 def find_executable(cmd, path_dirs):
+    """Search for an executable command in the directories listed in PATH."""
     for path in path_dirs:
         cmd_path = os.path.join(path, cmd)
         if os.path.isfile(cmd_path) and os.access(cmd_path, os.X_OK):
@@ -11,7 +13,7 @@ def find_executable(cmd, path_dirs):
 
 
 def main():
-    shell_builtin = ["exit", "echo", "type"]
+    shell_builtin = {"exit", "echo", "type"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
 
@@ -30,17 +32,19 @@ def main():
         if not command:
             continue
 
-        # Check for exit condition
-        if command == "exit 0":
-            break
-
         tokens = command.split()
 
+        # Handle exit command
+        if tokens[0] == "exit" and len(tokens) == 2 and tokens[1] == "0":
+            break
+
+        # Handle echo command
         if tokens[0] == "echo":
             sys.stdout.write(" ".join(tokens[1:]) + "\n")
             sys.stdout.flush()
             continue
 
+        # Handle type command
         if tokens[0] == "type":
             for cmd in tokens[1:]:
                 if cmd in shell_builtin:
@@ -54,11 +58,16 @@ def main():
             sys.stdout.flush()
             continue
 
-        # sys.stdout.write(f"{tokens[0]}: command not found\n")
-        if os.path.isfile(command.split(" ")[0]):
-            os.system(command)
+        # Handle external commands
+        cmd_path = find_executable(tokens[0], path_dirs)
+        if cmd_path:
+            try:
+                subprocess.run([cmd_path] + tokens[1:])
+            except Exception as e:
+                sys.stdout.write(f"Error executing {tokens[0]}: {e}\n")
         else:
-            print(f"{command}: command not found")
+            sys.stdout.write(f"{tokens[0]}: command not found\n")
+
         sys.stdout.flush()
 
 
