@@ -1,15 +1,30 @@
 import sys
+import os
+
+
+def find_executable(cmd, path_dirs):
+    for path in path_dirs:
+        cmd_path = os.path.join(path, cmd)
+        if os.path.isfile(cmd_path) and os.access(cmd_path, os.X_OK):
+            return cmd_path
+    return None
 
 
 def main():
+    shell_builtin = ["exit", "echo", "type"]
+    PATH = os.environ.get("PATH", "")
+    path_dirs = PATH.split(":")
+
     while True:
-        # Display the prompt
         sys.stdout.write("$ ")
         sys.stdout.flush()
 
-        shell_builtin = ["exit", "echo", "type"]
         # Wait for user input
-        command = input().strip()
+        try:
+            command = input().strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
 
         # Skip empty commands
         if not command:
@@ -17,21 +32,30 @@ def main():
 
         # Check for exit condition
         if command == "exit 0":
-            sys.exit()
+            break
 
-        # Split the command into words
-        cmd = command.split()
+        tokens = command.split()
 
-        # Process the command using and if-elif-else structure
-        if cmd[0] == "echo":
-            # Print everything after the command name
-            print(" ".join(cmd[1:]))
-        elif cmd[0] == "type" and cmd[1] in shell_builtin:
-            print(f"{cmd[1]} is a shell builtin")
-        elif cmd[0] == "type" and cmd[1] not in shell_builtin:
-            print(f"{cmd[1]}: not found")
-        else:
-            print(f"{command}: command not found")
+        if tokens[0] == "echo":
+            sys.stdout.write(" ".join(tokens[1:]) + "\n")
+            sys.stdout.flush()
+            continue
+
+        if tokens[0] == "type":
+            for cmd in tokens[1:]:
+                if cmd in shell_builtin:
+                    sys.stdout.write(f"{cmd} is a shell builtin\n")
+                else:
+                    cmd_path = find_executable(cmd, path_dirs)
+                    if cmd_path:
+                        sys.stdout.write(f"{cmd} is {cmd_path}\n")
+                    else:
+                        sys.stdout.write(f"{cmd}: not found\n")
+            sys.stdout.flush()
+            continue
+
+        sys.stdout.write(f"{tokens[0]}: command not found\n")
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":
