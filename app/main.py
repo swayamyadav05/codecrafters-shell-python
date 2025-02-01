@@ -4,7 +4,6 @@ import subprocess
 
 
 def find_executable(cmd, path_dirs):
-    """Search for an executable command in the directories listed in PATH."""
     for path in path_dirs:
         cmd_path = os.path.join(path, cmd)
         if os.path.isfile(cmd_path) and os.access(cmd_path, os.X_OK):
