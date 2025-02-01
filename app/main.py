@@ -4,6 +4,7 @@ import subprocess
 
 
 def find_executable(cmd, path_dirs):
+    """Search for an executable command in the directories listed in PATH."""
     for path in path_dirs:
         cmd_path = os.path.join(path, cmd)
         if os.path.isfile(cmd_path) and os.access(cmd_path, os.X_OK):
@@ -15,6 +16,7 @@ def main():
     shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
+    HOME = os.environ.get("HOME", "/")  # Get home directory from environment
 
     while True:
         sys.stdout.write("$ ")
@@ -63,15 +65,19 @@ def main():
             sys.stdout.flush()
             continue
 
-        # Handle cd command (Absolute + Relative Paths)
+        # Handle cd command (Absolute, Relative Paths, and Home Directory)
         if tokens[0] == "cd":
             if len(tokens) < 2:  # If no argument is given, do nothing
                 continue
 
             path = tokens[1]
 
-            # Convert relative paths to absolute
-            new_path = os.path.abspath(path) if not os.path.isabs(path) else path
+            # If '~' is used, go to the home directory
+            if path == "~":
+                new_path = HOME
+            else:
+                # Convert relative paths to absolute
+                new_path = os.path.abspath(path) if not os.path.isabs(path) else path
 
             if os.path.isdir(new_path):  # Check if directory exists
                 os.chdir(new_path)  # Change directory
