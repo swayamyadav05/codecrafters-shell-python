@@ -2,15 +2,24 @@ import sys
 
 
 def main():
-    # Uncomment this block to pass the first stage
-    sys.stdout.write("$ ")
+    while True:
+        sys.stdout.write("$ ")
 
-    # Wait for user input
-    command = input()
-    if command == "exit 0":
-        return
-    print(f"{command}: command not found")
-    main()
+        # Wait for user input
+        command = input().strip()
+
+        if not command:
+            continue
+
+        if command == "exit 0":
+            sys.exit()
+
+        cmd = command.split()
+
+        if cmd[0] == "echo":
+            print(" ".join(cmd[1:]))
+        else:
+            print(f"{command}: command not found")
 
 
 if __name__ == "__main__":
