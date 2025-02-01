@@ -13,7 +13,7 @@ def find_executable(cmd, path_dirs):
 
 
 def main():
-    shell_builtin = {"exit", "echo", "type", "pwd"}  # Using a set for fast lookup
+    shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
 
@@ -61,6 +61,25 @@ def main():
         # Handle pwd command
         if tokens[0] == "pwd":
             sys.stdout.write(f"{os.getcwd()}\n")
+            sys.stdout.flush()
+            continue
+
+        # Handle cd command (Absolute Paths Only)
+        if tokens[0] == "cd":
+            if len(tokens) < 2:
+                continue
+
+            path = tokens[1]
+            if os.path.isabs(path):  # Check if path is absolute
+                if os.path.isdir(path):  # Check if directory exists
+                    os.chdir(path)  # Change directory
+                else:
+                    sys.stdout.write(f"cd: {path}: No such file or directory\n")
+            else:
+                sys.stdout.write(
+                    f"cd: {path}: Only absolute paths supports in this stage\n"
+                )
+
             sys.stdout.flush()
             continue
 
