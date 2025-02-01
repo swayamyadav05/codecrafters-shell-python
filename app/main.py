@@ -54,7 +54,11 @@ def main():
             sys.stdout.flush()
             continue
 
-        sys.stdout.write(f"{tokens[0]}: command not found\n")
+        # sys.stdout.write(f"{tokens[0]}: command not found\n")
+        if os.path.isfile(command.split(" ")[0]):
+            os.system(command)
+        else:
+            print(f"{command}: command not found")
         sys.stdout.flush()
 
 
