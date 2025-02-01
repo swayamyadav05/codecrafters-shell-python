@@ -56,9 +56,15 @@ def main():
         if tokens[0] == "exit" and len(tokens) == 2 and tokens[1] == "0":
             break
 
-        # Handle echo command
+        # Handle echo command (preserve quotes)
         if tokens[0] == "echo":
-            sys.stdout.write(" ".join(tokens[1:]) + "\n")
+            # Handle redirection in echo command
+            if ">" in command:
+                command, file_to_redirect = handle_redirection(command)
+                with open(file_to_redirect, "w") as f:
+                    f.write(" ".join(tokens[1:]) + "\n")
+            else:
+                sys.stdout.write(" ".join(tokens[1:]) + "\n")
             sys.stdout.flush()
             continue
 
