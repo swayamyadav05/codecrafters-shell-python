@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shlex
 
 
 def find_executable(cmd, path_dirs):
@@ -33,7 +34,15 @@ def main():
         if not command:
             continue
 
-        tokens = command.split()
+        # Use shlex.split to correctly parse quoted arguments
+        try:
+            tokens = shlex.split(command)
+        except ValueError as e:
+            sys.stdout.write(f"Error: {e}\n")
+            sys.stdout.flush()
+            continue
+
+        # tokens = command.split()
 
         # Handle exit command
         if tokens[0] == "exit" and len(tokens) == 2 and tokens[1] == "0":
@@ -45,30 +54,16 @@ def main():
             sys.stdout.flush()
             continue
 
-        # Handle type command
-        if tokens[0] == "type":
-            for cmd in tokens[1:]:
-                if cmd in shell_builtin:
-                    sys.stdout.write(f"{cmd} is a shell builtin\n")
-                else:
-                    cmd_path = find_executable(cmd, path_dirs)
-                    if cmd_path:
-                        sys.stdout.write(f"{cmd} is {cmd_path}\n")
-                    else:
-                        sys.stdout.write(f"{cmd}: not found\n")
-            sys.stdout.flush()
-            continue
-
         # Handle pwd command
         if tokens[0] == "pwd":
             sys.stdout.write(f"{os.getcwd()}\n")
             sys.stdout.flush()
             continue
 
-        # Handle cd command (Absolute, Relative Paths, and Home Directory)
+        # Handle cd command (Supports ~ and quoted paths)
         if tokens[0] == "cd":
-            if len(tokens) < 2:  # If no argument is given, do nothing
-                continue
+            if len(tokens) < 2:
+                continue  # Do nothing if no argument is given
 
             path = tokens[1]
 
@@ -87,11 +82,25 @@ def main():
             sys.stdout.flush()
             continue
 
+        # Handle type command
+        if tokens[0] == "type":
+            for cmd in tokens[1:]:
+                if cmd in shell_builtin:
+                    sys.stdout.write(f"{cmd} is a shell builtin\n")
+                else:
+                    cmd_path = find_executable(cmd, path_dirs)
+                    if cmd_path:
+                        sys.stdout.write(f"{cmd} is {cmd_path}\n")
+                    else:
+                        sys.stdout.write(f"{cmd}: not found\n")
+            sys.stdout.flush()
+            continue
+
         # Handle external commands
         cmd_path = find_executable(tokens[0], path_dirs)
         if cmd_path:
             try:
-                subprocess.run([tokens[0]] + tokens[1:], executable=cmd_path)
+                subprocess.run([cmd_path] + tokens[1:])
             except Exception as e:
                 sys.stdout.write(f"Error executing {tokens[0]}: {e}\n")
         else:
