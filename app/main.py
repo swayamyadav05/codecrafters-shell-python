@@ -13,6 +13,16 @@ def find_executable(cmd, path_dirs):
     return None
 
 
+def handle_redirection(command):
+    """Check if output redirection is requested, and split the command accordingly."""
+    if ">" in command:
+        parts = command.split(">")
+        command_part = parts[0].strip()
+        file_part = parts[1].strip()
+        return command_part, file_part
+    return command, None
+
+
 def main():
     shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
@@ -41,8 +51,6 @@ def main():
             sys.stdout.write(f"Error: {e}\n")
             sys.stdout.flush()
             continue
-
-        # tokens = command.split()
 
         # Handle exit command
         if tokens[0] == "exit" and len(tokens) == 2 and tokens[1] == "0":
@@ -93,6 +101,25 @@ def main():
                         sys.stdout.write(f"{cmd} is {cmd_path}\n")
                     else:
                         sys.stdout.write(f"{cmd}: not found\n")
+            sys.stdout.flush()
+            continue
+
+        # Handle redirection
+        command, file_to_redirect = handle_redirection(command)
+        if file_to_redirect:
+            try:
+                # Execute the command and redirect its output to the file
+                cmd_path = find_executable(command.split()[0], path_dirs)
+                if cmd_path:
+                    with open(file_to_redirect, "w") as f:
+                        subprocess.run(
+                            command.split(), stdout=f, stderr=subprocess.PIPE
+                        )
+                else:
+                    sys.stdout.write(f"{command.split()[0]}: command not found\n")
+            except Exception as e:
+                sys.stdout.write(f"Error: {e}\n")
+
             sys.stdout.flush()
             continue
 
