@@ -13,7 +13,7 @@ def find_executable(cmd, path_dirs):
 
 
 def main():
-    shell_builtin = {"exit", "echo", "type"}  # Using a set for fast lookup
+    shell_builtin = {"exit", "echo", "type", "pwd"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
 
@@ -55,6 +55,12 @@ def main():
                         sys.stdout.write(f"{cmd} is {cmd_path}\n")
                     else:
                         sys.stdout.write(f"{cmd}: not found\n")
+            sys.stdout.flush()
+            continue
+
+        # Handle pwd command
+        if tokens[0] == "pwd":
+            sys.stdout.write(f"{os.getcwd()}\n")
             sys.stdout.flush()
             continue
 
