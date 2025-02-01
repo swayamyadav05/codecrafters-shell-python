@@ -63,21 +63,20 @@ def main():
             sys.stdout.flush()
             continue
 
-        # Handle cd command (Absolute Paths Only)
+        # Handle cd command (Absolute + Relative Paths)
         if tokens[0] == "cd":
-            if len(tokens) < 2:
+            if len(tokens) < 2:  # If no argument is given, do nothing
                 continue
 
             path = tokens[1]
-            if os.path.isabs(path):  # Check if path is absolute
-                if os.path.isdir(path):  # Check if directory exists
-                    os.chdir(path)  # Change directory
-                else:
-                    sys.stdout.write(f"cd: {path}: No such file or directory\n")
+
+            # Convert relative paths to absolute
+            new_path = os.path.abspath(path) if not os.path.isabs(path) else path
+
+            if os.path.isdir(new_path):  # Check if directory exists
+                os.chdir(new_path)  # Change directory
             else:
-                sys.stdout.write(
-                    f"cd: {path}: Only absolute paths supports in this stage\n"
-                )
+                sys.stdout.write(f"cd: {path}: No such file or directory\n")
 
             sys.stdout.flush()
             continue
