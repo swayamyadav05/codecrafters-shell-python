@@ -93,12 +93,38 @@ def main():
     path_dirs = PATH.split(":")
     HOME = os.environ.get("HOME", "/")
 
-    # Set up tab completion for 'echo ' and 'exit '
-    completions = ["echo ", "exit "]
-
+    # Set up tab completion for built-in and external commands
     def tab_completer(text, state):
-        matches = [c for c in completions if c.startswith(text)]
-        return matches[state] if state < len(matches) else None
+        matches = []
+        # Check built-in commands
+        for cmd in shell_builtin:
+            candidate = cmd + " "
+            if candidate.startswith(text):
+                matches.append(candidate)
+        # Check external executables in PATH directories
+        for path_dir in path_dirs:
+            try:
+                # List all files in the directory
+                for filename in os.listdir(path_dir):
+                    filepath = os.path.join(path_dir, filename)
+                    # Check if it's an executable file and starts with text
+                    if os.path.isfile(filepath) and os.access(filepath, os.X_OK):
+                        candidate = filename + " "
+                        if candidate.startswith(text):
+                            matches.append(candidate)
+            except FileNotFoundError:
+                # Skip non-existent directories
+                continue
+            except PermissionError:
+                # Skip directories without read permission
+                continue
+        # Remove duplicates and sort
+        matches = sorted(list(set(matches)))
+        # Return the match based on the state index
+        if state < len(matches):
+            return matches[state]
+        else:
+            return None
 
     readline.set_completer(tab_completer)
     readline.parse_and_bind("tab: complete")
