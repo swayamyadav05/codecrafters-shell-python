@@ -32,7 +32,6 @@ def handle_builtin(
     f_err = None
 
     try:
-        # Open files for redirection if requested
         if stdout_filename:
             f_out = open(stdout_filename, stdout_mode)
             sys.stdout = f_out
@@ -43,7 +42,6 @@ def handle_builtin(
         if cmd == "echo":
             args = tokens[1:]
             newline = True
-            # Handle -n option if provided
             if args and args[0] == "-n":
                 newline = False
                 args = args[1:]
@@ -78,7 +76,6 @@ def handle_builtin(
     except Exception as e:
         sys.stderr.write(f"Error executing built-in command: {e}\n")
     finally:
-        # Restore original stdout and stderr and close files
         if f_out is not None:
             sys.stdout = original_stdout
             f_out.close()
@@ -93,18 +90,12 @@ def main():
     path_dirs = PATH.split(":")
     HOME = os.environ.get("HOME", "/")
 
-    # Global variables to keep track of completion attempts
-    last_matches = []
-    completion_attempt = 0
-
     def tab_completer(text, state):
         matches = []
-        # Check built-in commands (append a trailing space)
         for cmd in shell_builtin:
             candidate = cmd + " "
             if candidate.startswith(text):
                 matches.append(candidate)
-        # Check external executables in PATH directories
         for path_dir in path_dirs:
             try:
                 for filename in os.listdir(path_dir):
@@ -115,35 +106,15 @@ def main():
                             matches.append(candidate)
             except (FileNotFoundError, PermissionError):
                 continue
-        # Remove duplicates and sort
         matches = sorted(list(set(matches)))
-        if state < len(matches):
-            return matches[state]
-        else:
-            return None
+        return matches[state] if state < len(matches) else None
 
-    # Custom display hook for completions.
-    # On the first TAB press (when the matches list changes), ring a bell.
-    # On the second consecutive TAB press (with the same prefix),
-    # print the list of matches separated by two spaces, then reprint the prompt.
     def display_matches(substitution, matches, longest_match_length):
-        nonlocal last_matches, completion_attempt
-        # If the matches list has changed, reset the counter.
-        if matches != last_matches:
-            completion_attempt = 1
-            last_matches = matches
-            sys.stdout.write("\a")  # ring the bell
-            sys.stdout.flush()
-        else:
-            completion_attempt += 1
-            if completion_attempt >= 2:
-                # Print the list of matches on the next line
-                sys.stdout.write("\n" + "  ".join(matches) + "\n")
-                # Reprint the prompt and the current line buffer
-                prompt = "$ "
-                current_line = readline.get_line_buffer()
-                sys.stdout.write(prompt + current_line)
-                sys.stdout.flush()
+        stripped = [m.rstrip() for m in matches]
+        print("\n" + "  ".join(stripped))
+        current_line = readline.get_line_buffer()
+        sys.stdout.write(f"$ {current_line}")
+        sys.stdout.flush()
 
     readline.set_completer(tab_completer)
     readline.set_completion_display_matches_hook(display_matches)
@@ -169,13 +140,8 @@ def main():
             sys.stderr.flush()
             continue
 
-        # Reset our completion tracking variables for each new command input.
-        last_matches = []
-        completion_attempt = 0
-
-        # Parse redirection tokens (">", "1>", ">>", "1>>", "2>", "2>>")
         redirect_stdout = None
-        stdout_mode = "w"  # default is truncate
+        stdout_mode = "w"
         redirect_stderr = None
         stderr_mode = "w"
         new_tokens = []
@@ -225,7 +191,6 @@ def main():
             continue
 
         if not new_tokens:
-            # In case the command line only contained redirections, create the files.
             if redirect_stdout:
                 try:
                     with open(redirect_stdout, stdout_mode):
@@ -242,13 +207,11 @@ def main():
 
         cmd = new_tokens[0]
 
-        # Handle exit command
         if cmd == "exit":
             if len(new_tokens) == 2 and new_tokens[1] == "0":
                 break
             continue
 
-        # Handle built-in commands
         if cmd in shell_builtin:
             handle_builtin(
                 cmd,
@@ -265,7 +228,6 @@ def main():
             sys.stderr.flush()
             continue
 
-        # Handle external commands
         cmd_path = find_executable(cmd, path_dirs)
         if cmd_path:
             stdout_handle = None
@@ -275,7 +237,6 @@ def main():
                     stdout_handle = open(redirect_stdout, stdout_mode)
                 if redirect_stderr:
                     stderr_handle = open(redirect_stderr, stderr_mode)
-
                 subprocess.run(
                     new_tokens,
                     stdout=stdout_handle,
