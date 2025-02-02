@@ -14,9 +14,12 @@ def find_executable(cmd, path_dirs):
 
 
 def handle_redirection(command):
-    """Check if output redirection is requested, and split the command accordingly."""
-    if ">" in command:
-        parts = command.split(">")
+    """
+    Check if output redirection is requested (>, 1>).
+    Splits the command and returns (actual_command, output_file).
+    """
+    if " 1>" in command or " >" in command:
+        parts = command.replace(" 1>", " >").split(" >")
         command_part = parts[0].strip()
         file_part = parts[1].strip()
         return command_part, file_part
@@ -24,7 +27,7 @@ def handle_redirection(command):
 
 
 def main():
-    shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Using a set for fast lookup
+    shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
     HOME = os.environ.get("HOME", "/")  # Get home directory from environment
@@ -58,14 +61,15 @@ def main():
 
         # Handle echo command (preserves quotes)
         if tokens[0] == "echo":
-            # Handle redirection in echo command
-            if ">" in command:
-                command, file_to_redirect = handle_redirection(command)
+            command, file_to_redirect = handle_redirection(command)
+            output_text = " ".join(tokens[1:]) + "\n"
+
+            if file_to_redirect:
                 with open(file_to_redirect, "w") as f:
-                    f.write(" ".join(tokens[1:]) + "\n")
-                continue  # Do not print anything, just handle the redirection
+                    f.write(output_text)
             else:
-                sys.stdout.write(" ".join(tokens[1:]) + "\n")
+                sys.stdout.write(output_text)
+
             sys.stdout.flush()
             continue
 
@@ -111,16 +115,15 @@ def main():
             sys.stdout.flush()
             continue
 
-        # Handle redirection (other commands)
+        # Handle redirection for general commands
         command, file_to_redirect = handle_redirection(command)
         if file_to_redirect:
             try:
-                # Execute the command and redirect its output to the file
                 cmd_path = find_executable(command.split()[0], path_dirs)
                 if cmd_path:
                     with open(file_to_redirect, "w") as f:
                         subprocess.run(
-                            command.split(), stdout=f, stderr=subprocess.PIPE
+                            shlex.split(command), stdout=f, stderr=subprocess.PIPE
                         )
                 else:
                     sys.stdout.write(f"{command.split()[0]}: command not found\n")
