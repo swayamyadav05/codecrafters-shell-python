@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import shlex
+import readline
 
 
 def find_executable(cmd, path_dirs):
@@ -82,6 +83,16 @@ def main():
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
     HOME = os.environ.get("HOME", "/")
+
+    # Set up tab completion for 'echo ' and 'exit '
+    completions = ["echo ", "exit "]
+
+    def tab_completer(text, state):
+        matches = [c for c in completions if c.startswith(text)]
+        return matches[state] if state < len(matches) else None
+
+    readline.set_completer(tab_completer)
+    readline.parse_and_bind("tab: complete")
 
     while True:
         sys.stdout.write("$ ")
