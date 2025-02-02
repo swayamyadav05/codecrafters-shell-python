@@ -14,7 +14,15 @@ def find_executable(cmd, path_dirs):
 
 
 def handle_builtin(
-    cmd, tokens, redirect_stdout, redirect_stderr, home_dir, path_dirs, shell_builtins
+    cmd,
+    tokens,
+    stdout_filename,
+    stdout_mode,
+    stderr_filename,
+    stderr_mode,
+    home_dir,
+    path_dirs,
+    shell_builtins,
 ):
     """Execute a built-in command with optional stdout and stderr redirection."""
     original_stdout = sys.stdout
@@ -24,11 +32,11 @@ def handle_builtin(
 
     try:
         # Open files for redirection
-        if redirect_stdout:
-            f_out = open(redirect_stdout, "w")
+        if stdout_filename:
+            f_out = open(stdout_filename, stdout_mode)
             sys.stdout = f_out
-        if redirect_stderr:
-            f_err = open(redirect_stderr, "w")
+        if stderr_filename:
+            f_err = open(stderr_filename, stderr_mode)
             sys.stderr = f_err
 
         if cmd == "echo":
@@ -96,7 +104,9 @@ def main():
             continue
 
         redirect_stdout = None
+        stdout_mode = "w"  # default to truncate
         redirect_stderr = None
+        stderr_mode = "w"
         new_tokens = []
         i = 0
         error_occurred = False
@@ -110,6 +120,15 @@ def main():
                     error_occurred = True
                     break
                 redirect_stdout = tokens[i + 1]
+                stdout_mode = "w"
+                i += 2
+            elif token in (">>", "1>>"):
+                if i + 1 >= len(tokens):
+                    sys.stderr.write(f"Syntax error: no filename after '{token}'\n")
+                    error_occurred = True
+                    break
+                redirect_stdout = tokens[i + 1]
+                stdout_mode = "a"
                 i += 2
             elif token == "2>":
                 if i + 1 >= len(tokens):
@@ -117,6 +136,15 @@ def main():
                     error_occurred = True
                     break
                 redirect_stderr = tokens[i + 1]
+                stderr_mode = "w"
+                i += 2
+            elif token == "2>>":
+                if i + 1 >= len(tokens):
+                    sys.stderr.write(f"Syntax error: no filename after '{token}'\n")
+                    error_occurred = True
+                    break
+                redirect_stderr = tokens[i + 1]
+                stderr_mode = "a"
                 i += 2
             else:
                 new_tokens.append(token)
@@ -130,13 +158,13 @@ def main():
             # Handle empty command with redirections
             if redirect_stdout:
                 try:
-                    with open(redirect_stdout, "w"):
+                    with open(redirect_stdout, stdout_mode):
                         pass
                 except Exception as e:
                     sys.stderr.write(f"Error creating file: {e}\n")
             if redirect_stderr:
                 try:
-                    with open(redirect_stderr, "w"):
+                    with open(redirect_stderr, stderr_mode):
                         pass
                 except Exception as e:
                     sys.stderr.write(f"Error creating file: {e}\n")
@@ -156,7 +184,9 @@ def main():
                 cmd,
                 new_tokens,
                 redirect_stdout,
+                stdout_mode,
                 redirect_stderr,
+                stderr_mode,
                 HOME,
                 path_dirs,
                 shell_builtin,
@@ -172,9 +202,9 @@ def main():
             stderr_handle = None
             try:
                 if redirect_stdout:
-                    stdout_handle = open(redirect_stdout, "w")
+                    stdout_handle = open(redirect_stdout, stdout_mode)
                 if redirect_stderr:
-                    stderr_handle = open(redirect_stderr, "w")
+                    stderr_handle = open(redirect_stderr, stderr_mode)
 
                 subprocess.run(
                     new_tokens,
@@ -186,7 +216,7 @@ def main():
                 error_msg = f"Error executing command: {e}\n"
                 if redirect_stderr:
                     try:
-                        with open(redirect_stderr, "a") as f:
+                        with open(redirect_stderr, stderr_mode) as f:
                             f.write(error_msg)
                     except Exception as e:
                         sys.stderr.write(f"Error writing to stderr file: {e}\n")
@@ -202,7 +232,7 @@ def main():
             error_message = f"{cmd}: command not found\n"
             if redirect_stderr:
                 try:
-                    with open(redirect_stderr, "w") as f:
+                    with open(redirect_stderr, stderr_mode) as f:
                         f.write(error_message)
                 except Exception as e:
                     sys.stderr.write(f"Error writing to stderr file: {e}\n")
