@@ -61,29 +61,16 @@ def main():
 
         # Handle echo command (preserves quotes)
         if tokens[0] == "echo":
-            file_to_redirect = None
-            if ">" in tokens or "1>" in tokens:
-                try:
-                    # Find redirection operator
-                    redir_index = (
-                        tokens.index(">") if ">" in tokens else tokens.index("1>")
-                    )
-                    file_to_redirect = tokens[redir_index + 1]
-                    tokens = tokens[:redir_index]
-                except IndexError:
-                    sys.stdout.write("Error: No file provided for redirection\n")
-                    sys.stdout.flush()
-                    continue
-
-            output = " ".join(tokens[1:]) + "\n"
+            command, file_to_redirect = handle_redirection(command)
+            output_text = " ".join(tokens[1:]) + "\n"
 
             if file_to_redirect:
                 with open(file_to_redirect, "w") as f:
-                    f.write(output)
+                    f.write(output_text)
             else:
-                sys.stdout.write(output)
-                sys.stdout.flush()
+                sys.stdout.write(output_text)
 
+            sys.stdout.flush()
             continue
 
         # Handle pwd command
