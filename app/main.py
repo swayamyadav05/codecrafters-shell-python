@@ -13,21 +13,8 @@ def find_executable(cmd, path_dirs):
     return None
 
 
-def handle_redirection(command):
-    """
-    Check if output redirection is requested (>, 1>).
-    Splits the command and returns (actual_command, output_file).
-    """
-    if " 1>" in command or " >" in command:
-        parts = command.replace(" 1>", " >").split(" >")
-        command_part = parts[0].strip()
-        file_part = parts[1].strip()
-        return command_part, file_part
-    return command, None
-
-
 def main():
-    shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Fast lookup
+    shell_builtin = {"exit", "echo", "type", "pwd", "cd"}  # Using a set for fast lookup
     PATH = os.environ.get("PATH", "")
     path_dirs = PATH.split(":")
     HOME = os.environ.get("HOME", "/")  # Get home directory from environment
@@ -55,94 +42,131 @@ def main():
             sys.stdout.flush()
             continue
 
-        # Handle exit command
-        if tokens[0] == "exit" and len(tokens) == 2 and tokens[1] == "0":
-            break
+        redirect_stdout = None
+        new_tokens = []
+        i = 0
+        error_occurred = False
 
-        # Handle echo command (preserves quotes)
-        if tokens[0] == "echo":
-            command, file_to_redirect = handle_redirection(command)
-            output_text = " ".join(tokens[1:]) + "\n"
-
-            if file_to_redirect:
-                with open(file_to_redirect, "w") as f:
-                    f.write(output_text)
+        # Process tokens to find redirection operators
+        while i < len(tokens):
+            token = tokens[i]
+            if token in (">", "1>"):
+                if i + 1 >= len(tokens):
+                    sys.stdout.write(f"Syntax error: no filename after '{token}'\n")
+                    error_occurred = True
+                    break
+                redirect_stdout = tokens[i + 1]
+                i += 2  # Skip the operator and filename
             else:
-                sys.stdout.write(output_text)
+                new_tokens.append(token)
+                i += 1
 
+        if error_occurred:
+            sys.stdout.flush()
+            continue
+
+        # Handle empty command with redirection
+        if not new_tokens and redirect_stdout:
+            try:
+                with open(redirect_stdout, "w"):
+                    pass
+            except Exception as e:
+                sys.stdout.write(f"Error creating file: {e}\n")
+            sys.stdout.flush()
+            continue
+        elif not new_tokens:
+            continue  # Skip processing if no command and no redirection
+
+        cmd = new_tokens[0]
+
+        # Handle exit command
+        if cmd == "exit":
+            if len(new_tokens) == 2 and new_tokens[1] == "0":
+                break
+            else:
+                continue
+
+        # Handle echo command
+        if cmd == "echo":
+            output = " ".join(new_tokens[1:]) + "\n"
+            if redirect_stdout:
+                try:
+                    with open(redirect_stdout, "w") as f:
+                        f.write(output)
+                except Exception as e:
+                    sys.stdout.write(f"Error writing to file: {e}\n")
+            else:
+                sys.stdout.write(output)
             sys.stdout.flush()
             continue
 
         # Handle pwd command
-        if tokens[0] == "pwd":
-            sys.stdout.write(f"{os.getcwd()}\n")
+        if cmd == "pwd":
+            pwd = os.getcwd() + "\n"
+            if redirect_stdout:
+                try:
+                    with open(redirect_stdout, "w") as f:
+                        f.write(pwd)
+                except Exception as e:
+                    sys.stdout.write(f"Error writing to file: {e}\n")
+            else:
+                sys.stdout.write(pwd)
             sys.stdout.flush()
             continue
 
-        # Handle cd command (Supports ~ and quoted paths)
-        if tokens[0] == "cd":
-            if len(tokens) < 2:
-                continue  # Do nothing if no argument is given
-
-            path = tokens[1]
-
-            # If '~' is used, go to the home directory
-            if path == "~":
+        # Handle cd command
+        if cmd == "cd":
+            path = new_tokens[1] if len(new_tokens) > 1 else ""
+            if path == "~" or not path:
                 new_path = HOME
             else:
-                # Convert relative paths to absolute
-                new_path = os.path.abspath(path) if not os.path.isabs(path) else path
-
-            if os.path.isdir(new_path):  # Check if directory exists
-                os.chdir(new_path)  # Change directory
+                new_path = os.path.expanduser(path)
+                if not os.path.isabs(new_path):
+                    new_path = os.path.abspath(new_path)
+            if os.path.isdir(new_path):
+                os.chdir(new_path)
             else:
                 sys.stdout.write(f"cd: {path}: No such file or directory\n")
-
             sys.stdout.flush()
             continue
 
         # Handle type command
-        if tokens[0] == "type":
-            for cmd in tokens[1:]:
-                if cmd in shell_builtin:
-                    sys.stdout.write(f"{cmd} is a shell builtin\n")
+        if cmd == "type":
+            output = []
+            for cmd_name in new_tokens[1:]:
+                if cmd_name in shell_builtin:
+                    output.append(f"{cmd_name} is a shell builtin\n")
                 else:
-                    cmd_path = find_executable(cmd, path_dirs)
+                    cmd_path = find_executable(cmd_name, path_dirs)
                     if cmd_path:
-                        sys.stdout.write(f"{cmd} is {cmd_path}\n")
+                        output.append(f"{cmd_name} is {cmd_path}\n")
                     else:
-                        sys.stdout.write(f"{cmd}: not found\n")
-            sys.stdout.flush()
-            continue
-
-        # Handle redirection for general commands
-        command, file_to_redirect = handle_redirection(command)
-        if file_to_redirect:
-            try:
-                cmd_path = find_executable(command.split()[0], path_dirs)
-                if cmd_path:
-                    with open(file_to_redirect, "w") as f:
-                        subprocess.run(
-                            shlex.split(command), stdout=f, stderr=subprocess.PIPE
-                        )
-                else:
-                    sys.stdout.write(f"{command.split()[0]}: command not found\n")
-            except Exception as e:
-                sys.stdout.write(f"Error: {e}\n")
-
+                        output.append(f"{cmd_name}: not found\n")
+            full_output = "".join(output)
+            if redirect_stdout:
+                try:
+                    with open(redirect_stdout, "w") as f:
+                        f.write(full_output)
+                except Exception as e:
+                    sys.stdout.write(f"Error writing to file: {e}\n")
+            else:
+                sys.stdout.write(full_output)
             sys.stdout.flush()
             continue
 
         # Handle external commands
-        cmd_path = find_executable(tokens[0], path_dirs)
+        cmd_path = find_executable(cmd, path_dirs)
         if cmd_path:
             try:
-                subprocess.run([tokens[0]] + tokens[1:], executable=cmd_path)
+                if redirect_stdout:
+                    with open(redirect_stdout, "w") as f:
+                        subprocess.run(new_tokens, stdout=f)
+                else:
+                    subprocess.run(new_tokens)
             except Exception as e:
-                sys.stdout.write(f"Error executing {tokens[0]}: {e}\n")
+                sys.stdout.write(f"Error executing command: {e}\n")
         else:
-            sys.stdout.write(f"{tokens[0]}: command not found\n")
-
+            sys.stdout.write(f"{cmd}: command not found\n")
         sys.stdout.flush()
 
 
