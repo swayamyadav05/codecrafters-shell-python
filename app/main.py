@@ -41,7 +41,16 @@ def handle_builtin(
             sys.stderr = f_err
 
         if cmd == "echo":
-            sys.stdout.write(" ".join(tokens[1:]) + "\n")
+            args = tokens[1:]
+            newline = True
+            # Handle -n option
+            if args and args[0] == "-n":
+                newline = False
+                args = args[1:]
+            output = " ".join(args)
+            if newline:
+                output += "\n"
+            sys.stdout.write(output)
         elif cmd == "pwd":
             sys.stdout.write(os.getcwd() + "\n")
         elif cmd == "cd":
